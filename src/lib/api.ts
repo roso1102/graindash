@@ -38,10 +38,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Auth
-export function loginTelegram(authData: Record<string, unknown>): Promise<LoginResponse> {
+export function loginTelegram(authData: string): Promise<LoginResponse> {
   return request<LoginResponse>("/auth/telegram-login", {
     method: "POST",
-    body: JSON.stringify(authData),
+    body: authData,
   });
 }
 

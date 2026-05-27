@@ -31,7 +31,7 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
       try {
-        const res = await loginTelegram(user);
+        const res = await loginTelegram(JSON.stringify(user));
         setAuth(
           { id: res.user.id, telegram_chat_id: res.user.telegram_chat_id, display_name: res.user.display_name, created_at: new Date().toISOString() },
           res.session_token
@@ -46,10 +46,10 @@ export default function LoginPage() {
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     script.async = true;
-    script.setAttribute("data-telegram-login", process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "GrainPKOSBot");
+    script.setAttribute("data-telegram-login", process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "higrain_bot");
     script.setAttribute("data-size", "large");
     script.setAttribute("data-onauth", "window.onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
+    // script.setAttribute("data-request-access", "write");
 
     const container = document.getElementById("telegram-login-container");
     if (container) {
