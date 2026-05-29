@@ -1,8 +1,18 @@
 import type {
-  User, Note, NoteDetail, NoteUpdate, Topic, Entity, EntityDetail,
+  User, NoteDetail, NoteUpdate, Topic, Entity, EntityDetail,
   Stats, GraphData, SearchResults, NotesResponse, Facets,
   LoginResponse, EntityRef
 } from "@/types";
+
+export interface TelegramLoginPayload {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -38,10 +48,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Auth
-export function loginTelegram(authData: string): Promise<LoginResponse> {
+export function loginTelegram(authData: TelegramLoginPayload): Promise<LoginResponse> {
   return request<LoginResponse>("/auth/telegram-login", {
     method: "POST",
-    body: authData,
+    body: JSON.stringify(authData),
   });
 }
 

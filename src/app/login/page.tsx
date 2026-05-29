@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginTelegram, getMe } from "@/lib/api";
+import { loginTelegram, getMe, type TelegramLoginPayload } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
 declare global {
   interface Window {
-    onTelegramAuth?: (user: Record<string, unknown>) => void;
+    onTelegramAuth?: (user: TelegramLoginPayload) => void;
   }
 }
 
@@ -27,11 +27,11 @@ export default function LoginPage() {
   }, [router]);
 
   useEffect(() => {
-    window.onTelegramAuth = async (user: Record<string, unknown>) => {
+    window.onTelegramAuth = async (user: TelegramLoginPayload) => {
       setLoading(true);
       setError("");
       try {
-        const res = await loginTelegram(JSON.stringify(user));
+        const res = await loginTelegram(user);
         setAuth(
           { id: res.user.id, telegram_chat_id: res.user.telegram_chat_id, display_name: res.user.display_name, created_at: new Date().toISOString() },
           res.session_token
@@ -48,7 +48,7 @@ export default function LoginPage() {
     script.async = true;
     script.setAttribute("data-telegram-login", process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "higrain_bot");
     script.setAttribute("data-size", "large");
-    script.setAttribute("data-onauth", "window.onTelegramAuth(user)");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
     // script.setAttribute("data-request-access", "write");
 
     const container = document.getElementById("telegram-login-container");
