@@ -84,7 +84,7 @@ export default function NoteDetailPage() {
   if (loading) return <LoadingSpinner />;
   if (!note) return <div className="text-center py-12 text-text-secondary">Note not found.</div>;
 
-  const entityColors: Record<string, string> = {
+  const entityColors: Record<string, 'default' | 'success' | 'warning' | 'accent' | 'info' | 'danger'> = {
     concept: "accent",
     technology: "info",
     project: "success",
