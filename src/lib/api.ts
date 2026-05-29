@@ -1,19 +1,9 @@
 import type {
   User, NoteDetail, NoteUpdate, Topic, Entity, EntityDetail,
   Stats, GraphData, SearchResults, NotesResponse, Facets,
-  LoginResponse, EntityRef
+  EntityRef
 } from "@/types";
 import supabase from "./supabaseClient";
-
-export interface TelegramLoginPayload {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: number;
-  hash: string;
-}
 
 export interface TelegramLinkTokenResponse {
   token: string;
@@ -21,13 +11,12 @@ export interface TelegramLinkTokenResponse {
   expires_in_minutes: number;
 }
 
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  let token: string | null = null;
-  if (typeof window !== "undefined") {
-    token = localStorage.getItem("session_token");
-  }
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || null;
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -39,10 +28,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("session_token");
-      window.location.href = "/login";
-    }
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") { window.location.href = "/login"; }
     throw new Error("Unauthorized");
   }
 
@@ -54,49 +41,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// Auth
-export function loginTelegram(authData: TelegramLoginPayload): Promise<LoginResponse> {
-  return request<LoginResponse>("/auth/telegram-login", {
-    method: "POST",
-    body: JSON.stringify(authData),
-  });
-}
 
 export function getMe(): Promise<User> {
   return request<User>("/auth/me");
 }
 
-export function createTelegramLinkToken(): Promise<TelegramLinkTokenResponse> {
-  return (async () => {
-    // Prefer Supabase access token if available, otherwise fall back to local session_token
-    try {
-      // supabase-js v2: auth.getSession()
-      const anySupabase: any = supabase as any;
-      let accessToken: string | null = null;
-      if (anySupabase?.auth?.getSession) {
-        const { data } = await anySupabase.auth.getSession();
-        accessToken = data?.session?.access_token || null;
-      } else if (anySupabase?.auth?.session) {
-        accessToken = anySupabase.auth.session()?.access_token || null;
-      }
 
-      const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-      return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
-        method: "POST",
-        headers,
-      });
-    } catch (e) {
-      return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
-        method: "POST",
-      });
-    }
-  })();
+export function createTelegramLinkToken(): Promise<TelegramLinkTokenResponse> {
+  return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
+    method: "POST",
+  });
 }
+
 
 // Dashboard
 export function getStats(): Promise<Stats> {
   return request<Stats>("/dashboard/stats");
 }
+
 
 // Notes
 export function listNotes(params?: {
@@ -120,9 +82,11 @@ export function listNotes(params?: {
   return request<NotesResponse>(`/dashboard/notes${q ? `?${q}` : ""}`);
 }
 
+
 export function getNote(id: string): Promise<NoteDetail> {
   return request<NoteDetail>(`/dashboard/notes/${id}`);
 }
+
 
 export function updateNote(id: string, data: NoteUpdate): Promise<{ status: string }> {
   return request(`/dashboard/notes/${id}`, {
@@ -131,18 +95,22 @@ export function updateNote(id: string, data: NoteUpdate): Promise<{ status: stri
   });
 }
 
+
 export function deleteNote(id: string): Promise<{ status: string }> {
   return request(`/dashboard/notes/${id}`, { method: "DELETE" });
 }
+
 
 export function getNoteEntities(id: string): Promise<{ note_id: string; entities: EntityRef[] }> {
   return request(`/dashboard/notes/${id}/entities`);
 }
 
+
 // Topics
 export function listTopics(): Promise<Topic[]> {
   return request<Topic[]>("/dashboard/topics");
 }
+
 
 export function getTopicNotes(id: string, page?: number, per_page?: number): Promise<NotesResponse> {
   const qs = new URLSearchParams();
@@ -152,10 +120,12 @@ export function getTopicNotes(id: string, page?: number, per_page?: number): Pro
   return request<NotesResponse>(`/dashboard/topics/${id}/notes${q ? `?${q}` : ""}`);
 }
 
+
 // Entities
 export function listEntities(): Promise<Entity[]> {
   return request<Entity[]>("/dashboard/entities");
 }
+
 
 // Topics - update
 export function updateTopic(id: string, data: { name?: string; description?: string }): Promise<{ status: string }> {
@@ -165,14 +135,17 @@ export function updateTopic(id: string, data: { name?: string; description?: str
   });
 }
 
+
 export function getEntity(id: string): Promise<EntityDetail> {
   return request<EntityDetail>(`/dashboard/entities/${id}`);
 }
+
 
 // Graph
 export function getGraphData(): Promise<GraphData> {
   return request<GraphData>("/dashboard/graph-data");
 }
+
 
 // Search
 export function searchNotes(query: string, limit?: number): Promise<SearchResults> {
@@ -182,10 +155,12 @@ export function searchNotes(query: string, limit?: number): Promise<SearchResult
   });
 }
 
+
 // Facets
 export function getFacets(): Promise<Facets> {
   return request<Facets>("/facets");
 }
+
 
 // Ingest
 export function ingestNote(text: string, source_type: string, source_url?: string): Promise<{ note_id: string }> {
@@ -194,6 +169,7 @@ export function ingestNote(text: string, source_type: string, source_url?: strin
     body: JSON.stringify({ text, source_type, source_url }),
   });
 }
+
 
 // Related
 export function getRelatedNotes(noteId: string): Promise<{ relations: Array<{ source_note_id: string; target_note_id: string; relation_type: string; score: number }> }> {

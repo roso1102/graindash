@@ -116,12 +116,3 @@ export interface NoteUpdate {
   facets?: Record<string, string[]>;
 }
 
-export interface LoginResponse {
-  session_token: string;
-  expires_in_hours: number;
-  user: {
-    id: string;
-    telegram_chat_id: number;
-    display_name: string;
-  };
-}

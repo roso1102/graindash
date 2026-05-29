@@ -2,65 +2,53 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginTelegram, getMe, type TelegramLoginPayload } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth";
-
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: TelegramLoginPayload) => void;
-  }
-}
+import supabase from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
   const [error, setError] = useState("");
+  const [magicSent, setMagicSent] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("session_token");
-    if (token) {
-      getMe()
-        .then(() => router.replace("/dashboard"))
-        .catch(() => localStorage.removeItem("session_token"));
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace("/dashboard");
+    });
   }, [router]);
 
-  useEffect(() => {
-    window.onTelegramAuth = async (user: TelegramLoginPayload) => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await loginTelegram(user);
-        setAuth(
-          { id: res.user.id, telegram_chat_id: res.user.telegram_chat_id, display_name: res.user.display_name, created_at: new Date().toISOString() },
-          res.session_token
-        );
-        router.push("/dashboard");
-      } catch {
-        setError("Login failed. Please try again.");
-        setLoading(false);
-      }
-    };
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setError(error.message); setLoading(false); }
+    else { router.push("/dashboard"); }
+  };
 
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "higrain_bot");
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-onauth", "onTelegramAuth(user)");
-    // script.setAttribute("data-request-access", "write");
+  const handleMagicLink = async () => {
+    if (!email) { setError("Enter your email first"); return; }
+    setMagicLoading(true); setError("");
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + "/auth/callback" },
+    });
+    if (error) { setError(error.message); } else { setMagicSent(true); }
+    setMagicLoading(false);
+  };
 
-    const container = document.getElementById("telegram-login-container");
-    if (container) {
-      container.innerHTML = "";
-      container.appendChild(script);
-    }
-
-    return () => {
-      delete window.onTelegramAuth;
-    };
-  }, [setAuth, router]);
+  const handleSignUp = async () => {
+    if (!email || !password) { setError("Enter email and password"); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: window.location.origin + "/auth/callback" },
+    });
+    if (error) { setError(error.message); } else { setMagicSent(true); }
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-bg-page flex items-center justify-center px-4">
@@ -75,18 +63,42 @@ export default function LoginPage() {
 
         <h1 className="text-xl font-semibold text-text-primary mb-6">Welcome to Grain</h1>
 
-        {loading ? (
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-text-secondary">Logging in...</span>
+        {magicSent ? (
+          <div className="py-4">
+            <p className="text-sm text-text-secondary">Check your email for a login link.</p>
           </div>
         ) : (
-          <>
-            <div id="telegram-login-container" className="flex justify-center py-4" />
-            {error && (
-              <p className="text-sm text-danger mt-4">{error}</p>
-            )}
-          </>
+          <form onSubmit={handleEmailLogin} className="space-y-4 text-left">
+            <div>
+              <label className="block text-sm text-text-secondary mb-1">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors" placeholder="you@example.com" required />
+            </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-1">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors" placeholder="Your password" required />
+            </div>
+
+            {error && <p className="text-sm text-danger">{error}</p>}
+
+
+            <button type="submit" disabled={loading} className="w-full px-4 py-2 text-sm rounded-md bg-accent text-bg-page font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50">
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <div className="flex-1 h-px bg-border" />
+              <span>or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <button type="button" onClick={handleMagicLink} disabled={magicLoading} className="w-full px-4 py-2 text-sm rounded-md bg-surface border border-border text-text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50">
+              {magicLoading ? "Sending..." : "Send Magic Link"}
+            </button>
+
+            <button type="button" onClick={handleSignUp} disabled={loading} className="w-full px-4 py-2 text-sm rounded-md bg-surface border border-border text-text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50">
+              Create Account
+            </button>
+          </form>
         )}
       </div>
     </div>
