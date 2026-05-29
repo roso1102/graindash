@@ -1,12 +1,12 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const code = searchParams.get("code")
+  const next = searchParams.get("next") ?? "/dashboard"
 
-  let supabaseResponse = NextResponse.next({ request })
+  const response = NextResponse.redirect(`${origin}${next}`)
 
   if (code) {
     const supabase = createServerClient(
@@ -18,10 +18,8 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-            supabaseResponse = NextResponse.next({ request })
             cookiesToSet.forEach(({ name, value, options }) =>
-              supabaseResponse.cookies.set(name, value, options)
+              response.cookies.set(name, value, options)
             )
           },
         },
@@ -30,5 +28,5 @@ export async function GET(request: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  return response
 }
