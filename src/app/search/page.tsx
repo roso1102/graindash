@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { searchNotes, listTopics, getFacets } from "@/lib/api";
-import type { SearchResult, Topic, Facets } from "@/types";
+import { searchNotes, listTopics } from "@/lib/api";
+import type { SearchResult, Topic } from "@/types";
 import NoteCard from "@/components/NoteCard";
 import SearchBar from "@/components/SearchBar";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -20,7 +21,6 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [facets, setFacets] = useState<Facets>({});
 
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
@@ -30,21 +30,12 @@ export default function SearchPage() {
   const perPage = 20;
 
   useEffect(() => {
-    Promise.all([listTopics(), getFacets()])
-      .then(([t, f]) => {
-        setTopics(t);
-        setFacets(f);
-      })
+    listTopics()
+      .then(setTopics)
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (initialQuery) {
-      doSearch(initialQuery);
-    }
-  }, [initialQuery]);
-
-  const doSearch = async (q: string) => {
+  const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
@@ -62,26 +53,46 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialQuery) return;
+    const timeoutId = window.setTimeout(() => {
+      void doSearch(initialQuery);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [initialQuery, doSearch]);
 
   const toggleTopic = (id: string) => {
     setSelectedTopics((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
   const toggleStatus = (s: string) => {
     setSelectedStatuses((prev) => {
       const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
+      if (next.has(s)) {
+        next.delete(s);
+      } else {
+        next.add(s);
+      }
       return next;
     });
   };
   const toggleSourceType = (s: string) => {
     setSelectedSourceTypes((prev) => {
       const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
+      if (next.has(s)) {
+        next.delete(s);
+      } else {
+        next.add(s);
+      }
       return next;
     });
   };
@@ -173,6 +184,7 @@ export default function SearchPage() {
         <div className="flex-1">
           <div className="mb-4">
             <SearchBar
+              key={initialQuery}
               defaultValue={initialQuery}
               onSearch={(q) => {
                 setQuery(q);

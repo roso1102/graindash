@@ -3,6 +3,7 @@ import type {
   Stats, GraphData, SearchResults, NotesResponse, Facets,
   LoginResponse, EntityRef
 } from "@/types";
+import supabase from "./supabaseClient";
 
 export interface TelegramLoginPayload {
   id: number;
@@ -12,6 +13,12 @@ export interface TelegramLoginPayload {
   photo_url?: string;
   auth_date: number;
   hash: string;
+}
+
+export interface TelegramLinkTokenResponse {
+  token: string;
+  telegram_url: string;
+  expires_in_minutes: number;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -57,6 +64,33 @@ export function loginTelegram(authData: TelegramLoginPayload): Promise<LoginResp
 
 export function getMe(): Promise<User> {
   return request<User>("/auth/me");
+}
+
+export function createTelegramLinkToken(): Promise<TelegramLinkTokenResponse> {
+  return (async () => {
+    // Prefer Supabase access token if available, otherwise fall back to local session_token
+    try {
+      // supabase-js v2: auth.getSession()
+      const anySupabase: any = supabase as any;
+      let accessToken: string | null = null;
+      if (anySupabase?.auth?.getSession) {
+        const { data } = await anySupabase.auth.getSession();
+        accessToken = data?.session?.access_token || null;
+      } else if (anySupabase?.auth?.session) {
+        accessToken = anySupabase.auth.session()?.access_token || null;
+      }
+
+      const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+      return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
+        method: "POST",
+        headers,
+      });
+    } catch (e) {
+      return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
+        method: "POST",
+      });
+    }
+  })();
 }
 
 // Dashboard

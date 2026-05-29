@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getTopicNotes, listTopics, updateTopic } from "@/lib/api";
 import type { Topic, Note } from "@/types";
@@ -14,7 +14,6 @@ import { showToast } from "@/components/Toast";
 
 export default function TopicDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);

@@ -119,7 +119,7 @@ export default function NoteDetailPage() {
               >
                 <TagChip
                   label={entity.name}
-                  variant={(entityColors[entity.type] as any) || "default"}
+                  variant={entityColors[entity.type] ?? "default"}
                 />
               </Link>
             ))}

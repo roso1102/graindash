@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getGraphData } from "@/lib/api";
-import type { GraphData, GraphNode, GraphLink } from "@/types";
+import type { GraphData, GraphNode } from "@/types";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 
@@ -79,7 +79,7 @@ export default function GraphPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [searchParams]);
 
   const simulate = useCallback((): number => {
     if (!data) return 0;

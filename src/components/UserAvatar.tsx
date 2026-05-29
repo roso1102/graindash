@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 interface UserAvatarProps {
   name: string;
   photoUrl?: string | null;
@@ -12,14 +14,23 @@ const SIZE_CLASSES = {
   lg: "w-12 h-12 text-base",
 };
 
+const SIZE_PX = {
+  sm: 28,
+  md: 36,
+  lg: 48,
+};
+
 export default function UserAvatar({ name, photoUrl, size = "md" }: UserAvatarProps) {
   const initial = name?.[0]?.toUpperCase() || "?";
 
   if (photoUrl) {
     return (
-      <img
+      <Image
         src={photoUrl}
         alt={name}
+        width={SIZE_PX[size]}
+        height={SIZE_PX[size]}
+        unoptimized
         className={`${SIZE_CLASSES[size]} rounded-full object-cover`}
       />
     );

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStats, listNotes, listTopics, ingestNote } from "@/lib/api";
+import { getStats, listNotes, listTopics, ingestNote, createTelegramLinkToken } from "@/lib/api";
 import type { Stats, Note, Topic } from "@/types";
 import NoteCard from "@/components/NoteCard";
 import SearchBar from "@/components/SearchBar";
-import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import { showToast } from "@/components/Toast";
 
@@ -39,6 +38,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [captureText, setCaptureText] = useState("");
   const [capturing, setCapturing] = useState(false);
+  const [linkingTelegram, setLinkingTelegram] = useState(false);
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     Promise.all([getStats(), listNotes({ sort: "created_at", order: "desc", per_page: 10 }), listTopics()])
@@ -68,9 +69,22 @@ export default function DashboardPage() {
     }
   };
 
+  const handleLinkTelegram = async () => {
+    setLinkingTelegram(true);
+    try {
+      const res = await createTelegramLinkToken();
+      window.open(res.telegram_url, "_blank", "noopener,noreferrer");
+      showToast("Telegram link opened", "success");
+    } catch {
+      showToast("Failed to create Telegram link", "error");
+    } finally {
+      setLinkingTelegram(false);
+    }
+  };
+
   const timeAgo = (dateStr: string | null): string => {
     if (!dateStr) return "Never";
-    const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    const seconds = Math.floor((nowMs - new Date(dateStr).getTime()) / 1000);
     if (seconds < 60) return "just now";
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -133,6 +147,13 @@ export default function DashboardPage() {
               className="px-4 py-2 bg-accent text-bg-page text-sm font-semibold rounded-md hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               {capturing ? "Capturing..." : "Capture"}
+            </button>
+            <button
+              onClick={handleLinkTelegram}
+              disabled={linkingTelegram}
+              className="ml-3 px-4 py-2 bg-surface border border-border text-text-primary text-sm font-semibold rounded-md hover:bg-surface-hover transition-colors disabled:opacity-50"
+            >
+              {linkingTelegram ? "Opening Telegram..." : "Link Telegram"}
             </button>
           </div>
 

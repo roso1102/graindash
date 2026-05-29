@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface SearchBarProps {
@@ -14,10 +14,6 @@ export default function SearchBar({ defaultValue = "", onSearch, large }: Search
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    setQuery(defaultValue);
-  }, [defaultValue]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

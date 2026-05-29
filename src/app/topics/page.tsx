@@ -27,19 +27,25 @@ export default function TopicsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTopic) {
-      setNotes([]);
-      setTotal(0);
-      return;
-    }
-    setNotesLoading(true);
-    getTopicNotes(selectedTopic, page, 20)
-      .then((res) => {
-        setNotes(res.notes);
-        setTotal(res.total);
-      })
-      .catch(console.error)
-      .finally(() => setNotesLoading(false));
+    if (!selectedTopic) return;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      setNotesLoading(true);
+      getTopicNotes(selectedTopic, page, 20)
+        .then((res) => {
+          if (cancelled) return;
+          setNotes(res.notes);
+          setTotal(res.total);
+        })
+        .catch(console.error)
+        .finally(() => {
+          if (!cancelled) setNotesLoading(false);
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [selectedTopic, page]);
 
   const selectedTopicObj = topics.find((t) => t.id === selectedTopic);

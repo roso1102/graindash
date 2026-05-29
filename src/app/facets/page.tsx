@@ -24,19 +24,25 @@ export default function FacetsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedKey || !selectedValue) {
-      setNotes([]);
-      setTotal(0);
-      return;
-    }
-    setNotesLoading(true);
-    listNotes({ facet_key: selectedKey, facet_value: selectedValue, per_page: 20 })
-      .then((res) => {
-        setNotes(res.notes);
-        setTotal(res.total);
-      })
-      .catch(console.error)
-      .finally(() => setNotesLoading(false));
+    if (!selectedKey || !selectedValue) return;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      setNotesLoading(true);
+      listNotes({ facet_key: selectedKey, facet_value: selectedValue, per_page: 20 })
+        .then((res) => {
+          if (cancelled) return;
+          setNotes(res.notes);
+          setTotal(res.total);
+        })
+        .catch(console.error)
+        .finally(() => {
+          if (!cancelled) setNotesLoading(false);
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [selectedKey, selectedValue]);
 
   return (

@@ -8,7 +8,7 @@ import { getMe } from "@/lib/api";
 const PUBLIC_ROUTES = ["/", "/login"];
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, token, setAuth, logout, setLoading, loading } = useAuthStore();
+  const { user, setAuth, logout, setLoading, loading } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
 
