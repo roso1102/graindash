@@ -2,57 +2,74 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "@/lib/supabaseClient";
+import { useAuthStore } from "@/stores/auth";
+import { requestCode, verifyCode } from "@/lib/api";
+
+type Step = "chatid" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { setAuth } = useAuthStore();
+  const [step, setStep] = useState<Step>("chatid");
+  const [chatId, setChatId] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [magicLoading, setMagicLoading] = useState(false);
   const [error, setError] = useState("");
-  const [magicSent, setMagicSent] = useState(false);
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace("/dashboard");
-    });
+    const stored = localStorage.getItem("grain_session_token");
+    if (stored) {
+      router.replace("/dashboard");
+    }
   }, [router]);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
+
+    const numericId = parseInt(chatId.trim(), 10);
+    if (isNaN(numericId) || numericId <= 0) {
+      setError("Please enter a valid Telegram Chat ID (numbers only).");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setError(error.message); setLoading(false); }
-      else { setLoading(false); router.push("/dashboard"); }
+      await requestCode(numericId);
+      setSuccess("Code sent! Check your Telegram.");
+      setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Failed to send code");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleMagicLink = async () => {
-    if (!email) { setError("Enter your email first"); return; }
-    setMagicLoading(true); setError("");
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin + "/auth/callback" },
-    });
-    if (error) { setError(error.message); } else { setMagicSent(true); }
-    setMagicLoading(false);
-  };
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-  const handleSignUp = async () => {
-    if (!email || !password) { setError("Enter email and password"); return; }
-    setLoading(true); setError("");
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: window.location.origin + "/auth/callback" },
-    });
-    if (error) { setError(error.message); } else { setMagicSent(true); }
-    setLoading(false);
+    const trimmedCode = code.trim();
+    if (!trimmedCode || trimmedCode.length !== 6) {
+      setError("Please enter the 6-digit code.");
+      setLoading(false);
+      return;
+    }
+
+    const numericId = parseInt(chatId.trim(), 10);
+
+    try {
+      const res = await verifyCode(numericId, trimmedCode);
+      setAuth(res.user, res.session_token);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid code");
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,42 +83,76 @@ export default function LoginPage() {
           <span className="text-xl font-semibold text-text-primary">Grain</span>
         </div>
 
-        <h1 className="text-xl font-semibold text-text-primary mb-6">Welcome to Grain</h1>
+        <h1 className="text-xl font-semibold text-text-primary mb-2">Welcome to Grain</h1>
+        <p className="text-sm text-text-secondary mb-6">
+          {step === "chatid"
+            ? "Enter your Telegram Chat ID to receive a login code."
+            : "Enter the 6-digit code sent to your Telegram."}
+        </p>
 
-        {magicSent ? (
-          <div className="py-4">
-            <p className="text-sm text-text-secondary">Check your email for a login link.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleEmailLogin} className="space-y-4 text-left">
+        {step === "chatid" ? (
+          <form onSubmit={handleRequestCode} className="space-y-4 text-left">
             <div>
-              <label className="block text-sm text-text-secondary mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors" placeholder="you@example.com" required />
-            </div>
-            <div>
-              <label className="block text-sm text-text-secondary mb-1">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors" placeholder="Your password" required />
+              <label className="block text-sm text-text-secondary mb-1">Telegram Chat ID</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={chatId}
+                onChange={(e) => setChatId(e.target.value)}
+                className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors"
+                placeholder="e.g. 123456789"
+                required
+              />
+              <p className="mt-1 text-xs text-text-muted">
+                Send /start to @higrain_bot, then forward any message to @userinfobot to find your Chat ID.
+              </p>
             </div>
 
             {error && <p className="text-sm text-danger">{error}</p>}
 
-
-            <button type="submit" disabled={loading} className="w-full px-4 py-2 text-sm rounded-md bg-accent text-bg-page font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50">
-              {loading ? "Signing in..." : "Sign In"}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-4 py-2 text-sm rounded-md bg-accent text-bg-page font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
+            >
+              {loading ? "Sending..." : "Send Login Code"}
             </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyCode} className="space-y-4 text-left">
+            {success && <p className="text-sm text-accent">{success}</p>}
 
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <div className="flex-1 h-px bg-border" />
-              <span>or</span>
-              <div className="flex-1 h-px bg-border" />
+            <div>
+              <label className="block text-sm text-text-secondary mb-1">Login Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className="w-full bg-bg-page border border-border rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent transition-colors text-center text-2xl tracking-[0.5em] font-mono"
+                placeholder="000000"
+                autoFocus
+                required
+              />
             </div>
 
-            <button type="button" onClick={handleMagicLink} disabled={magicLoading} className="w-full px-4 py-2 text-sm rounded-md bg-surface border border-border text-text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50">
-              {magicLoading ? "Sending..." : "Send Magic Link"}
+            {error && <p className="text-sm text-danger">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-4 py-2 text-sm rounded-md bg-accent text-bg-page font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
+            >
+              {loading ? "Verifying..." : "Sign In"}
             </button>
 
-            <button type="button" onClick={handleSignUp} disabled={loading} className="w-full px-4 py-2 text-sm rounded-md bg-surface border border-border text-text-secondary hover:bg-surface-hover transition-colors disabled:opacity-50">
-              Create Account
+            <button
+              type="button"
+              onClick={() => { setStep("chatid"); setCode(""); setError(""); setSuccess(""); }}
+              className="w-full text-xs text-text-muted hover:underline"
+            >
+              Back
             </button>
           </form>
         )}

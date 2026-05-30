@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth";
 import { useState } from "react";
+import supabase from "@/lib/supabaseClient";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: "📊" },
@@ -21,7 +22,9 @@ export default function NavSidebar() {
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    document.cookie = "sb_session=; path=/; max-age=0";
     logout();
     router.push("/login");
   };

@@ -1,27 +1,25 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-const PUBLIC_ROUTES = ["/", "/login"];
+const PUBLIC_ROUTES = ["/", "/login"]
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
   if (PUBLIC_ROUTES.includes(pathname)) {
-    return NextResponse.next();
+    return NextResponse.next()
   }
 
-  const token = request.cookies.get("session_token")?.value;
+  const hasSession = request.cookies.get("sb_session")?.value === "1"
 
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  if (!hasSession) {
+    const loginUrl = new URL("/login", request.url)
+    return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next();
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api).*)",
-  ],
-};
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|auth/callback).*)"],
+}

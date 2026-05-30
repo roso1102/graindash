@@ -4,7 +4,12 @@ import { useAuthStore } from "@/stores/auth";
 import PageHeader from "@/components/PageHeader";
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/login";
+  };
 
   return (
     <div>
@@ -23,11 +28,12 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="bg-surface border border-border rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold text-text-primary mb-4">Preferences</h2>
-        <p className="text-sm text-text-secondary">Settings coming soon. For now, your knowledge is organized automatically by AI.</p>
+        <button
+          onClick={handleLogout}
+          className="mt-4 px-4 py-2 text-sm rounded-md bg-surface border border-border text-text-secondary hover:bg-surface-hover transition-colors"
+        >
+          Sign Out
+        </button>
       </div>
 
       <div className="bg-surface border border-border rounded-lg p-6">

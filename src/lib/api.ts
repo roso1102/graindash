@@ -3,7 +3,7 @@ import type {
   Stats, GraphData, SearchResults, NotesResponse, Facets,
   EntityRef
 } from "@/types";
-import supabase from "./supabaseClient";
+import { useAuthStore } from "@/stores/auth";
 
 export interface TelegramLinkTokenResponse {
   token: string;
@@ -11,12 +11,30 @@ export interface TelegramLinkTokenResponse {
   expires_in_minutes: number;
 }
 
+export interface ApiKeyCreateResponse {
+  id: string;
+  key: string;
+  key_prefix: string;
+  name: string;
+  created_at: string;
+  expires_at: string | null;
+}
+
+export interface ApiKeyInfo {
+  id: string;
+  key_prefix: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+}
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token || null;
+  const token = useAuthStore.getState().token;
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -28,7 +46,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (res.status === 401) {
-    await supabase.auth.signOut();
+    useAuthStore.getState().logout();
     if (typeof window !== "undefined") { window.location.href = "/login"; }
     throw new Error("Unauthorized");
   }
@@ -42,6 +60,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 
+// Auth endpoints
+export function requestCode(telegramChatId: number): Promise<{ message: string }> {
+  return request("/auth/request-code", {
+    method: "POST",
+    body: JSON.stringify({ telegram_chat_id: telegramChatId }),
+  });
+}
+
+export function verifyCode(telegramChatId: number, code: string): Promise<{ session_token: string; user: User }> {
+  return request("/auth/verify-code", {
+    method: "POST",
+    body: JSON.stringify({ telegram_chat_id: telegramChatId, code }),
+  });
+}
+
+
 export function getMe(): Promise<User> {
   return request<User>("/auth/me");
 }
@@ -51,6 +85,23 @@ export function createTelegramLinkToken(): Promise<TelegramLinkTokenResponse> {
   return request<TelegramLinkTokenResponse>("/auth/telegram-link-token", {
     method: "POST",
   });
+}
+
+
+// API Key management
+export function createApiKey(name?: string, expiresInDays?: number): Promise<ApiKeyCreateResponse> {
+  return request<ApiKeyCreateResponse>("/auth/api-keys", {
+    method: "POST",
+    body: JSON.stringify({ name: name || "Dashboard API Key", expires_in_days: expiresInDays }),
+  });
+}
+
+export function listApiKeys(): Promise<{ api_keys: ApiKeyInfo[] }> {
+  return request<{ api_keys: ApiKeyInfo[] }>("/auth/api-keys");
+}
+
+export function revokeApiKey(keyId: string): Promise<{ status: string }> {
+  return request(`/auth/api-keys/${keyId}`, { method: "DELETE" });
 }
 
 
